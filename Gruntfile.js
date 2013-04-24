@@ -1,0 +1,192 @@
+'use strict';
+
+module.exports = function (grunt) {
+
+    // load all grunt tasks
+    require('matchdep').filterDev('grunt-*').forEach(grunt.loadNpmTasks);
+
+    // load custom Grunt tasks
+//    grunt.loadTasks('tools/grunt');
+
+    // configurable paths
+    var buildConfig = {
+        src: './',
+        dest: 'deploy'
+    };
+
+
+    grunt.initConfig({
+        appBuildData: buildConfig,
+
+        // Clean up
+        // ========================================
+        clean: {
+            deploy: [ '<%= appBuildData.dest %>/*' ]
+        },
+	
+        copy: {
+            toBuild: {
+                src: ['**', "!deploy/**", '!node_modules/**', ["!Gruntfile.js"]],
+                dest: 'deploy/'
+	        }
+        },
+	    
+          // RequireJS
+        // ========================================
+        requirejs: {
+            all: {
+                options: {
+                    baseUrl: "<%= appBuildData.src %>",
+                    dir: "<%= appBuildData.dest %>/",
+                    keepBuildDir: true,
+                    preserveLicenseComments: false,
+                    optimizeAllPluginResources: true,
+                    optimize: "none",
+                    skipDirOptimize: false,
+                    removeCombined: true,
+                    fileExclusionRegExp: /\.tpl\.html|\.less|console-ide\.html|config\..+\.js|samples|empty|readme$/i,
+                    paths: {
+                        "jquery": "vendors/jquery-1.9.1.min"
+                    },
+                    modules: [
+                        {
+                            name: "base",
+                            "exclude": ["jquery"]
+                        },
+                        {
+                            name: "sitebar",
+                            "exclude": ["jquery"]
+                        }
+                    ]
+                }
+            }
+        },
+
+        // Concatenate vendor libs.
+        // ========================================
+        concat: {
+            options: {
+                separator: ';',
+                stripBanners: true
+            },
+            all: {
+                src: [
+                    '<%= appBuildData.src %>/vendors/jquery-1.9.1.min.js',
+                    '<%= appBuildData.src %>/vendors/jquery-bootstrap/*.js',
+                    '<%= appBuildData.src %>/vendors/momentjs/moment.js',
+                    '<%= appBuildData.src %>/vendors/jquery-hotkeys/jquery.hotkeys.js',
+                    '<%= appBuildData.src %>/vendors/jquery-icheck/jquery.icheck.js',
+                    '<%= appBuildData.src %>/vendors/handlebars/handlebars.runtime.js',
+		    '<%= appBuildData.dest %>/templates.js'
+                ],
+                dest: '<%= appBuildData.dest %>/vendors.js'
+            }
+        },
+
+        // Closure Compilation
+        // ========================================
+        closurecompiler: {
+            app: {
+                files: {
+                    "<%= appBuildData.dest %>/base.js": [ '<%= appBuildData.dest %>/base.js' ],
+                    "<%= appBuildData.dest %>/vendors.js": [ '<%= appBuildData.dest %>/vendors.js' ]
+                },
+                options: {
+                    language_in: 'ECMASCRIPT5',
+                    warning_level: 'QUIET'
+                }
+            },
+            sitebar: {
+                files: {
+                    "<%= appBuildData.dest %>/sitebar.js": [ '<%= appBuildData.dest %>/sitebar.js' ]
+                },
+                options: {
+                    language_in: 'ECMASCRIPT5',
+                    warning_level: 'QUIET'
+                }
+            }
+        },
+
+        // create revved files with md5 hash
+        // =======================================
+        rev: {
+            img: {
+                files: [
+                    {
+                        src: [
+                            '<%= appBuildData.dest %>/**/*.{jpg,jpeg,gif,png}',
+                            '<%= appBuildData.dest %>/**/*.{eot,svg,ttf,woff}'
+                        ]
+                    }
+                ]
+            },
+            cssjs: {
+                files: [
+                    {
+                        src: [
+                            '<%= appBuildData.dest %>/**/*.{css,js}'
+                        ]
+                    }
+                ]
+            }
+
+        },
+
+        // replaces revved files in html and css
+        // =======================================
+        usemin: {
+            css: {
+                files: {
+                    src: ['<%= appBuildData.dest %>/**/*.css']
+                },
+                options: {
+                    basedir: ['<%= appBuildData.dest %>']
+                }
+            },
+            html: {
+                files: {
+                    src: ['<%= appBuildData.dest %>/**/*.html']
+                },
+                options: {
+                    basedir: '<%= appBuildData.dest %>'
+                }
+            }
+
+        },
+
+        // replace cdn constant with cdn url
+        // =======================================
+        replace: {
+            all: {
+                src: ['<%= appBuildData.dest %>/index.html'],
+                overwrite: true,
+                replacements: [{
+                    from: 'appBuildData.cdn',
+                    to: "<%= appBuildData.cdn %>"
+                }]
+            }
+        }
+    });
+
+
+    // Generate docs
+    grunt.registerTask('docs', ['clean:docs', 'jsdoc']);
+
+    // The default tasks
+    var defaultTasks = [
+    'clean',
+	'copy',
+    'rev:img',
+	'usemin:css',
+	'rev:cssjs',
+	'usemin:html'
+    ];
+
+    // Default task
+    // ========================================
+    grunt.registerTask("default", "Default task", function (mode, deployPath) {
+
+        grunt.task.run(defaultTasks);
+    });
+
+};
